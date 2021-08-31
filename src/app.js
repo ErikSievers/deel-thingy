@@ -10,6 +10,13 @@ app.set('sequelize', sequelize)
 app.set('models', sequelize.models)
 
 /**
+ * @returns the user profile
+ */
+app.get('/profile', getProfile, async (req, res) => {
+    res.json(req.profile)
+})
+
+/**
  * @returns contract by id
  */
 app.get('/contracts/:id', getProfile, async (req, res) => {
@@ -90,7 +97,7 @@ app.get('/jobs/unpaid', getProfile, async (req, res) => {
 })
 
 /**
- * Let's a client pay for a job
+ * Lets a client pay for a job
  * Job needs to be unpaid and part of a non-terminated contract
  * @returns true if successful
  * @throws 400 insufficient funds if the balance of a client is insufficient
@@ -101,7 +108,7 @@ app.post('/jobs/:job_id/pay', getProfile, async (req, res) => {
     try {
         const jobPromise = Job.findOne({
             where: {
-                [Op.or]: [{ paid: { [Op.is]: null } }, { paid: { [Op.not]: true } }]
+                id: req.params.job_id
             },
             include: {
                 model: Contract,
@@ -133,6 +140,10 @@ app.post('/jobs/:job_id/pay', getProfile, async (req, res) => {
         if (!job) {
             res.sendStatus(404);
             throw "Job not found"
+        }
+        if (job.paid === true) {
+            res.status(400).send("Job already paid")
+            throw "Job already paid"
         }
         if (client.balance < job.price) {
             res.status(400).send("Insufficient funds");
@@ -171,6 +182,70 @@ app.post('/jobs/:job_id/pay', getProfile, async (req, res) => {
         }
     }
     // Get the job, client and contractor
+})
+
+/**
+ * Makes a deposit for a client
+ * @returns true if successful
+ * @throws 400 Insufficient debt if trying to deposit more than 25% of what is owed
+ */
+app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
+    if (req.params.userId != req.profile.id) {
+        return res.sendStatus(404);
+    }
+    const amount = req.body.amount;
+    const { Job, Contract, Profile } = req.app.get('models');
+    const t = await sequelize.transaction();
+    try {
+        const sumPromise = Job.findAll({
+            attributes: [
+                [sequelize.fn('sum', sequelize.col('price')), 'total_amount'],
+            ],
+            where: {
+                [Op.or]: [{ paid: { [Op.is]: null } }, { paid: { [Op.not]: true } }]
+            },
+            include: {
+                model: Contract,
+                required: true,
+                where: {
+                    [Op.and]: [{
+                        [Op.not]: {
+                            status: 'terminated'
+                        }
+                    },
+                    {
+                        ClientId: req.profile.id
+                    }
+                    ]
+                }
+            },
+            transaction: t,
+        });
+        const profilePromise = Profile.findOne({
+            where: { id: req.profile.id },
+            transaction: t
+        });
+        const profile = await profilePromise;
+        const sum = (await sumPromise) * 0.25;
+        if (amount > sum) {
+            res.status(400).send("Insufficient debt");
+            throw "Insufficient debt"
+        }
+        const balanceUpdate = await Profile.update({ balance: profile.balance + amount }, {
+            where: {
+                id: profile.id
+            },
+            transaction: t
+        });
+        await t.commit();
+        return res.sendStatus(200);
+    } catch (e) {
+        console.log(e);
+        await t.rollback();
+        if (!res.headersSent) {
+            res.sendStatus(500);
+        }
+    }
 })
 
 
