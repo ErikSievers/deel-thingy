@@ -248,5 +248,50 @@ app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
     }
 })
 
+/**
+ * @returns The most highly paid profession in the date range
+ */
+app.get('/admin/best-profession', getProfile, async (req, res) => {
+    const { Job, Contract, Profile } = req.app.get('models');
+    const start = req.query.start;
+    const end = req.query.end;
+    // Get jobs in range, left join contract, left join contractor, group by profession
+    const [result, metadata] = await sequelize.query(`select p.profession from Jobs j
+left join Contracts c on c.id = j.ContractId
+left join Profiles p on p.id = c.ContractorId
+where j.paymentDate BETWEEN '${start}' AND '${end}'
+group by p.profession
+order by sum(j.price) desc
+limit 1
+`,);
+    // const sum = await Job.findAll({
+    //     attributes: [
+    //         'Contract->Contractor.profession',
+    //         // [sequelize.fn('sum', sequelize.col('price')), 'total_amount'],
+    //     ],
+    //     where: {
+    //         paymentDate: {
+    //             [Op.between]: [start, end]
+    //         }
+    //     },
+    //     include: {
+    //         model: Contract,
+    //         required: true,
+    //         attributes: [],
+    //         include: {
+    //             model: Profile,
+    //             // attributes: ['profession'],
+    //             as: 'Contractor',
+    //             required: true,
+    //         }
+    //     },
+    //     group: 'Contract->Contractor.profession',
+    //     order: [[sequelize.fn('sum', sequelize.col('price')), 'DESC']],
+    //     limit: 1
+    // });
+    // console.log(JSON.stringify(sum));
+    res.send(result[0]?.profession ?? '');
+})
+
 
 module.exports = app;
