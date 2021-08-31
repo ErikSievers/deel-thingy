@@ -66,7 +66,7 @@ app.get('/jobs/unpaid', getProfile, async (req, res) => {
     const { Job, Contract, Profile } = req.app.get('models')
     const jobs = await Job.findAll({
         where: {
-            paid: false
+            [Op.or]: [{ paid: { [Op.is]: null } }, { paid: { [Op.not]: true } }]
         },
         include: {
             model: Contract,
