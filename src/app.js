@@ -272,7 +272,7 @@ app.get('/admin/best-clients', getProfile, async (req, res) => {
     const start = req.query.start;
     const end = req.query.end;
     const limit = req.query.limit ?? 2;
-    const [result, metadata] = await sequelize.query(`select p.* from Jobs j
+    const [result, metadata] = await sequelize.query(`select p.id, p.firstName || ' ' || p.lastName as 'fullName', sum(j.price) as 'paid' from Jobs j
 left join Contracts c on c.id = j.ContractId
 left join Profiles p on p.id = c.ClientId
 where j.paymentDate BETWEEN '${start}' AND '${end}'
