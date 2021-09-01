@@ -257,11 +257,14 @@ app.get('/admin/best-profession', async (req, res) => {
     const [result, metadata] = await sequelize.query(`select p.profession from Jobs j
 left join Contracts c on c.id = j.ContractId
 left join Profiles p on p.id = c.ContractorId
-where j.paymentDate BETWEEN '${start}' AND '${end}'
+where j.paymentDate BETWEEN :start AND :end
 group by p.profession
 order by sum(j.price) desc
 limit 1
-`,);
+`, {
+        replacements: { start, end },
+    }
+    );
     res.send(result[0]?.profession ?? '');
 })
 
@@ -275,11 +278,14 @@ app.get('/admin/best-clients', async (req, res) => {
     const [result, metadata] = await sequelize.query(`select p.id, p.firstName || ' ' || p.lastName as 'fullName', sum(j.price) as 'paid' from Jobs j
 left join Contracts c on c.id = j.ContractId
 left join Profiles p on p.id = c.ClientId
-where j.paymentDate BETWEEN '${start}' AND '${end}'
+where j.paymentDate BETWEEN :start AND :end
 group by p.profession
 order by sum(j.price) desc
-limit ${limit}
-`,);
+limit :limit
+`,
+        {
+            replacements: { start, end, limit }
+        });
     res.send(result);
 })
 
