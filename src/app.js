@@ -251,7 +251,7 @@ app.post('/balances/deposit/:userId', getProfile, async (req, res) => {
 /**
  * @returns The most highly paid profession in the date range
  */
-app.get('/admin/best-profession', getProfile, async (req, res) => {
+app.get('/admin/best-profession', async (req, res) => {
     const start = req.query.start;
     const end = req.query.end;
     const [result, metadata] = await sequelize.query(`select p.profession from Jobs j
@@ -268,7 +268,7 @@ limit 1
 /**
  * @returns The most highly paid profession in the date range
  */
-app.get('/admin/best-clients', getProfile, async (req, res) => {
+app.get('/admin/best-clients', async (req, res) => {
     const start = req.query.start;
     const end = req.query.end;
     const limit = req.query.limit ?? 2;
